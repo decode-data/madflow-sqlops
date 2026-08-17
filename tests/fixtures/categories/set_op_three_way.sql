@@ -1,0 +1,2 @@
+-- dialect: 
+SELECT id FROM a UNION SELECT id FROM b UNION ALL SELECT id FROM c
