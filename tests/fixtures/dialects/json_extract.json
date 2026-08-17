@@ -1,0 +1,11 @@
+[
+  {
+    "source_summary": "payload",
+    "path": "$.email",
+    "scalar": true,
+    "output": "user_email",
+    "source_columns": [
+      "payload"
+    ]
+  }
+]

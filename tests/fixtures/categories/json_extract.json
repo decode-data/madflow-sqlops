@@ -1,0 +1,37 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [],
+  "rename": [],
+  "compute": [
+    {
+      "output": "user_email",
+      "expression_summary": "payload ->> 'email'",
+      "source_columns": [
+        "payload"
+      ]
+    }
+  ],
+  "aggregate": [],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [
+    {
+      "source_summary": "payload",
+      "path": "$.email",
+      "scalar": true,
+      "output": "user_email",
+      "source_columns": [
+        "payload"
+      ]
+    }
+  ],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}

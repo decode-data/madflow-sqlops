@@ -1,0 +1,36 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [],
+  "rename": [],
+  "compute": [
+    {
+      "output": "payload",
+      "expression_summary": "PARSE_JSON(raw_payload)",
+      "source_columns": [
+        "raw_payload"
+      ]
+    }
+  ],
+  "aggregate": [],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [
+    {
+      "source_summary": "raw_payload",
+      "output": "payload",
+      "safe": false,
+      "source_columns": [
+        "raw_payload"
+      ]
+    }
+  ],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}

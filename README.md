@@ -36,7 +36,7 @@ Optional, later — not v0.1: a thin MCP server wrapping `tag_operations` as a t
 from madflow_sqlops import tag_operations
 
 result = tag_operations(sql, dialect="snowflake")
-# result.gdto_version == "0.1"
+# result.gdt_version == "0.2"
 # result.operations.join -> [...]
 # result.operations.rename -> [...]
 # result.operations.compute -> [...]

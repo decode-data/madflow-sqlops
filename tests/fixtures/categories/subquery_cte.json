@@ -1,0 +1,48 @@
+{
+  "join": [],
+  "filter": [
+    {
+      "summary": "order_date > '2026-01-01'"
+    }
+  ],
+  "set_op": [],
+  "rename": [],
+  "compute": [
+    {
+      "output": "order_count",
+      "expression_summary": "COUNT(*)"
+    }
+  ],
+  "aggregate": [
+    {
+      "function": "count",
+      "argument_summary": "*",
+      "output": "order_count",
+      "distinct": false,
+      "group_by_keys": [
+        "customer_id"
+      ]
+    }
+  ],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [
+    {
+      "kind": "cte",
+      "alias": "recent_orders",
+      "location": "with"
+    }
+  ],
+  "wildcard_select": [
+    {
+      "kind": "star"
+    }
+  ],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}

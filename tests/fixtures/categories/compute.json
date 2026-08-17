@@ -1,0 +1,28 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [],
+  "rename": [],
+  "compute": [
+    {
+      "output": "total_with_tax",
+      "expression_summary": "amount * (1 + tax_rate)",
+      "source_columns": [
+        "amount",
+        "tax_rate"
+      ]
+    }
+  ],
+  "aggregate": [],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}

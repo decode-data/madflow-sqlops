@@ -1,0 +1,59 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [],
+  "rename": [],
+  "compute": [
+    {
+      "output": "total_spent",
+      "expression_summary": "SUM(amount)",
+      "source_columns": [
+        "amount"
+      ]
+    },
+    {
+      "output": "order_count",
+      "expression_summary": "COUNT(DISTINCT order_id)",
+      "source_columns": [
+        "order_id"
+      ]
+    }
+  ],
+  "aggregate": [
+    {
+      "function": "sum",
+      "argument_summary": "amount",
+      "output": "total_spent",
+      "distinct": false,
+      "group_by_keys": [
+        "customer_id"
+      ],
+      "source_columns": [
+        "amount"
+      ]
+    },
+    {
+      "function": "count",
+      "argument_summary": "order_id",
+      "output": "order_count",
+      "distinct": true,
+      "group_by_keys": [
+        "customer_id"
+      ],
+      "source_columns": [
+        "order_id"
+      ]
+    }
+  ],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}

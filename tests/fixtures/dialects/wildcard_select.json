@@ -1,0 +1,9 @@
+[
+  {
+    "kind": "star",
+    "except_columns": [
+      "internal_id",
+      "updated_at"
+    ]
+  }
+]

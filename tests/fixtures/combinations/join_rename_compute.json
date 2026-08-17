@@ -1,0 +1,44 @@
+{
+  "join": [
+    {
+      "kind": "inner",
+      "tables": [
+        "orders",
+        "customers"
+      ],
+      "keys": [
+        "customer_id"
+      ]
+    }
+  ],
+  "filter": [],
+  "set_op": [],
+  "rename": [
+    {
+      "source": "cust_id",
+      "output": "customer_id"
+    }
+  ],
+  "compute": [
+    {
+      "output": "total_with_tax",
+      "expression_summary": "amount * (1 + tax_rate)",
+      "source_columns": [
+        "amount",
+        "tax_rate"
+      ]
+    }
+  ],
+  "aggregate": [],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}

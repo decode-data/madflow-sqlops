@@ -1,0 +1,318 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/decode-data/gdt/schema/gdt-v0.1.schema.json",
+  "title": "GDT Tagged Summary",
+  "description": "The structured summary a GDT-conformant tagger emits for a single SQL query/model.",
+  "type": "object",
+  "required": ["gdt_version", "operations"],
+  "properties": {
+    "gdt_version": {
+      "type": "string",
+      "const": "0.2"
+    },
+    "operations": {
+      "type": "object",
+      "description": "Keys are GDT category names; each value is an array of occurrences (empty array if the category is absent).",
+      "properties": {
+        "join": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "tables"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["inner", "left", "right", "full", "cross"] },
+              "tables": { "type": "array", "items": { "type": "string" } },
+              "keys": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "filter": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["summary"],
+            "properties": { "summary": { "type": "string" } }
+          }
+        },
+        "set_op": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": { "kind": { "type": "string", "enum": ["union", "union_all", "except", "intersect"] } }
+          }
+        },
+        "rename": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source", "output"],
+            "properties": { "source": { "type": "string" }, "output": { "type": "string" } }
+          }
+        },
+        "compute": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["output", "expression_summary"],
+            "properties": {
+              "output": { "type": "string" },
+              "expression_summary": { "type": "string" },
+              "source_columns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Column names referenced anywhere in the computed expression (every exp.Column found in that subtree). Omitted or empty if the expression references no columns (e.g. a literal-only expression)."
+              }
+            }
+          }
+        },
+        "aggregate": {
+          "type": "array",
+          "description": "One entry per aggregate function call (exp.Sum, exp.Count, exp.Avg, exp.Min, exp.Max, ...), not one entry per GROUP BY clause. group_by_keys is repeated on every aggregate belonging to the same query.",
+          "items": {
+            "type": "object",
+            "required": ["function", "argument_summary"],
+            "properties": {
+              "function": { "type": "string", "description": "Aggregate function name, lowercased, e.g. sum, count, avg, min, max" },
+              "argument_summary": { "type": "string", "description": "Summary of the aggregated expression, e.g. 'amount', 'customer_id', '*'" },
+              "output": { "type": "string", "description": "Output column alias, if the aggregate is aliased" },
+              "distinct": { "type": "boolean", "description": "True for e.g. COUNT(DISTINCT x) — exp.Distinct wrapping the argument" },
+              "group_by_keys": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Summaries of the query's GROUP BY expressions (exp.Group.expressions); empty/absent if the aggregate has no GROUP BY (e.g. a bare scalar aggregate)"
+              },
+              "source_columns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Column names referenced in the aggregated argument expression. Omitted or empty for COUNT(*) (no column argument)."
+              }
+            }
+          }
+        },
+        "window": {
+          "type": "array",
+          "description": "One entry per exp.Window (OVER clause).",
+          "items": {
+            "type": "object",
+            "required": ["function"],
+            "properties": {
+              "function": { "type": "string", "description": "The windowed function, e.g. row_number, rank, lag, lead, sum, avg" },
+              "output": { "type": "string", "description": "Output column alias, if aliased" },
+              "partition_by": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Summaries of PARTITION BY expressions (exp.Window.partition_by)"
+              },
+              "order_by": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Summaries of ORDER BY expressions within the OVER clause (exp.Window.order)"
+              },
+              "frame": {
+                "type": "object",
+                "description": "Frame spec (exp.WindowSpec), if the OVER clause defines one",
+                "properties": {
+                  "kind": { "type": "string", "enum": ["rows", "range"] },
+                  "start": { "type": "string", "description": "e.g. 'UNBOUNDED PRECEDING', '1 PRECEDING', 'CURRENT ROW'" },
+                  "end": { "type": "string", "description": "e.g. 'CURRENT ROW', 'UNBOUNDED FOLLOWING'" }
+                }
+              },
+              "source_columns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Column names referenced in the windowed function's own argument (e.g. 'amount' in SUM(amount) OVER (...)). Does not include partition_by/order_by columns — those are already structured separately."
+              }
+            }
+          }
+        },
+        "cast": {
+          "type": "array",
+          "description": "One entry per exp.Cast (type coercion only — not date/number formatting functions).",
+          "items": {
+            "type": "object",
+            "required": ["source_summary", "target_type"],
+            "properties": {
+              "source_summary": { "type": "string", "description": "Summary of the expression being cast (exp.Cast.this)" },
+              "target_type": { "type": "string", "description": "Target data type, lowercased, e.g. varchar, int, timestamp (exp.Cast.to)" },
+              "output": { "type": "string", "description": "Output column alias, if the cast is aliased" },
+              "safe": { "type": "boolean", "description": "True for a safe/non-throwing cast variant (e.g. TRY_CAST, SAFE_CAST)" },
+              "source_columns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Column names referenced in the expression being cast (exp.Cast.this) — usually one, more if it's a compound expression like CAST(a + b AS int)."
+              }
+            }
+          }
+        },
+        "conditional": {
+          "type": "array",
+          "description": "One entry per exp.Case (CASE/WHEN — including dialect-specific single-branch forms like IFF/IF that a tagger normalizes onto this same shape; see docs/decisions.md). Emitted for every occurrence found anywhere in the query, independent of whether the same node is also covered by a compute entry — see docs/grammar.md.",
+          "items": {
+            "type": "object",
+            "required": ["branches"],
+            "properties": {
+              "output": { "type": "string", "description": "Output column alias, if the conditional expression is the top-level aliased value" },
+              "operand_summary": { "type": "string", "description": "For simple CASE <expr> WHEN ... form, the compared expression (exp.Case.this); absent for searched CASE WHEN <bool> form" },
+              "branches": {
+                "type": "array",
+                "description": "Each WHEN/THEN pair (exp.Case.ifs)",
+                "items": {
+                  "type": "object",
+                  "required": ["condition", "result"],
+                  "properties": {
+                    "condition": { "type": "string" },
+                    "result": { "type": "string" }
+                  }
+                }
+              },
+              "default": { "type": "string", "description": "The ELSE expression summary (exp.Case.default), if present" }
+            }
+          }
+        },
+        "subquery_cte": {
+          "type": "array",
+          "description": "One entry per exp.CTE or exp.Subquery — a structural complexity signal, not itself a transformation; can co-occur with any other category.",
+          "items": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["cte", "subquery"], "description": "cte for a WITH-clause entry (exp.CTE), subquery for an inline derived table (exp.Subquery)" },
+              "alias": { "type": "string", "description": "The CTE/subquery alias name, if present" },
+              "location": { "type": "string", "description": "Where it's referenced, e.g. from, where, join" }
+            }
+          }
+        },
+        "wildcard_select": {
+          "type": "array",
+          "description": "One entry per exp.Star found in the SELECT list — a bare SELECT * or a qualified t.* — optionally with a dialect-specific EXCEPT(...) clause. REPLACE(...) is out of scope for v1; see docs/grammar.md.",
+          "items": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["star", "qualified_star"], "description": "star for a bare SELECT *; qualified_star for t.* / table.*" },
+              "qualifier": { "type": "string", "description": "Table alias or name, present only for qualified_star" },
+              "except_columns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Column names excluded via a dialect-specific EXCEPT(...) clause (e.g. BigQuery, Snowflake, DuckDB), if present"
+              }
+            }
+          }
+        },
+        "json_parse": {
+          "type": "array",
+          "description": "One entry per exp.ParseJSON — parsing a string/variant into a JSON-typed value (e.g. Snowflake/BigQuery PARSE_JSON).",
+          "items": {
+            "type": "object",
+            "required": ["source_summary"],
+            "properties": {
+              "source_summary": { "type": "string", "description": "The string/variant expression being parsed (exp.ParseJSON.this)" },
+              "output": { "type": "string", "description": "Output column alias, if aliased" },
+              "safe": { "type": "boolean", "description": "True for a safe/non-throwing parse variant (e.g. TRY_PARSE_JSON)" },
+              "source_columns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Column names referenced in the parsed expression"
+              }
+            }
+          }
+        },
+        "json_extract": {
+          "type": "array",
+          "description": "One entry per JSON path extraction — exp.JSONExtract / exp.JSONExtractScalar. Dialect-specific spellings (Postgres ->/->>, Snowflake : colon operator, BigQuery JSON_VALUE/JSON_QUERY) normalize onto this same shape per docs/decisions.md (0001).",
+          "items": {
+            "type": "object",
+            "required": ["source_summary", "path"],
+            "properties": {
+              "source_summary": { "type": "string", "description": "The JSON/object/variant expression being accessed (exp.JSONExtract.this)" },
+              "path": { "type": "string", "description": "Normalized JSON path, e.g. '$.field.subfield' (exp.JSONExtract.expression)" },
+              "scalar": { "type": "boolean", "description": "True if the extraction returns a scalar (->>, JSON_VALUE, exp.JSONExtractScalar) rather than a nested JSON value (->, JSON_QUERY, exp.JSONExtract)" },
+              "output": { "type": "string", "description": "Output column alias, if aliased" },
+              "source_columns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Column names referenced in the source JSON expression"
+              }
+            }
+          }
+        },
+        "unnest": {
+          "type": "array",
+          "description": "One entry per array/semi-structured unnest — exp.Unnest. Dialect-specific table functions (Snowflake LATERAL FLATTEN, Spark LATERAL VIEW EXPLODE) are expected to normalize onto this same shape per docs/decisions.md (0001); see docs/grammar.md for confidence notes on that mapping.",
+          "items": {
+            "type": "object",
+            "required": ["source_summary"],
+            "properties": {
+              "source_summary": { "type": "string", "description": "The array/semi-structured expression being unnested (exp.Unnest.expressions)" },
+              "alias": { "type": "string", "description": "Output row alias for the unnested elements, if present" },
+              "ordinality": { "type": "boolean", "description": "True if WITH ORDINALITY / an offset-index column is requested (exp.Unnest.offset)" },
+              "location": { "type": "string", "description": "Where it's referenced, e.g. from, join" },
+              "source_columns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Column names referenced in the unnested expression"
+              }
+            }
+          }
+        },
+        "ai_function": {
+          "type": "array",
+          "description": "One entry per call to a recognized AI/ML SQL function (e.g. Snowflake Cortex AI_COMPLETE/AI_CLASSIFY, BigQuery ML.GENERATE_TEXT/AI.GENERATE, Databricks ai_query). Unlike every other category, this is NOT grounded in a dedicated sqlglot AST node — sqlglot has no special node for 'this is an AI vendor function,' so detection is function-name-based against a maintained allowlist. See docs/decisions.md (0003) for the reasoning and consequences (allowlist maintenance burden, expected false negatives for unrecognized/renamed functions).",
+          "items": {
+            "type": "object",
+            "required": ["function"],
+            "properties": {
+              "function": { "type": "string", "description": "The called function name, lowercased/normalized (e.g. 'ai_complete', 'ml.generate_text')" },
+              "output": { "type": "string", "description": "Output column alias, if aliased" },
+              "argument_summary": { "type": "string", "description": "Summary of the call's arguments" },
+              "source_columns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Column names referenced in the call's arguments"
+              }
+            }
+          }
+        },
+        "udf": {
+          "type": "array",
+          "description": "One entry per call to an unrecognized/non-builtin function — typically exp.Anonymous in sqlglot. Like ai_function, NOT grounded in a dedicated AST node; see docs/decisions.md (0003). A tagger should check ai_function's allowlist first — an AI function call is tagged ai_function, not udf. False positives are possible for a genuine builtin sqlglot doesn't yet recognize for a given dialect.",
+          "items": {
+            "type": "object",
+            "required": ["function"],
+            "properties": {
+              "function": { "type": "string", "description": "The called function name as written, schema-qualified if present (e.g. 'my_schema.my_udf')" },
+              "output": { "type": "string", "description": "Output column alias, if aliased" },
+              "argument_summary": { "type": "string", "description": "Summary of the call's arguments" },
+              "source_columns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Column names referenced in the call's arguments"
+              }
+            }
+          }
+        },
+        "column_hash": {
+          "type": "array",
+          "description": "One entry per call to a hashing function. Mostly grounded in dedicated sqlglot nodes (exp.MD5, exp.SHA, exp.SHA2); dialect-specific hash functions sqlglot has no dedicated class for (e.g. Snowflake HASH(), BigQuery FARM_FINGERPRINT) fall back to function-name matching, same basis as ai_function/udf but as a fallback rather than the primary detection path — see docs/decisions.md (0003).",
+          "items": {
+            "type": "object",
+            "required": ["function", "argument_summary"],
+            "properties": {
+              "function": { "type": "string", "description": "Hash function name, lowercased, e.g. md5, sha1, sha256, hash, farm_fingerprint" },
+              "argument_summary": { "type": "string", "description": "Summary of the expression(s) being hashed" },
+              "output": { "type": "string", "description": "Output column alias, if aliased" },
+              "algorithm_bits": { "type": "integer", "description": "Bit length if specified, e.g. 256 for SHA2(x, 256)" },
+              "source_columns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Column names referenced in the hashed expression(s)"
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

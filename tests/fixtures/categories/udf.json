@@ -1,0 +1,36 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [],
+  "rename": [],
+  "compute": [
+    {
+      "output": "phone",
+      "expression_summary": "my_schema.normalize_phone(phone_number)",
+      "source_columns": [
+        "phone_number"
+      ]
+    }
+  ],
+  "aggregate": [],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [
+    {
+      "argument_summary": "phone_number",
+      "output": "phone",
+      "source_columns": [
+        "phone_number"
+      ],
+      "function": "my_schema.normalize_phone"
+    }
+  ],
+  "column_hash": []
+}

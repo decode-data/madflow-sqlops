@@ -1,0 +1,24 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [],
+  "rename": [
+    {
+      "source": "cust_id",
+      "output": "customer_id"
+    }
+  ],
+  "compute": [],
+  "aggregate": [],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}

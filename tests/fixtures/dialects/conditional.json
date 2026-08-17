@@ -1,0 +1,12 @@
+[
+  {
+    "branches": [
+      {
+        "condition": "status = 'active'",
+        "result": "1"
+      }
+    ],
+    "output": "is_active",
+    "default": "0"
+  }
+]

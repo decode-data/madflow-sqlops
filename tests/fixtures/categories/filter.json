@@ -1,0 +1,27 @@
+{
+  "join": [],
+  "filter": [
+    {
+      "summary": "status = 'completed'"
+    }
+  ],
+  "set_op": [],
+  "rename": [],
+  "compute": [],
+  "aggregate": [],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [
+    {
+      "kind": "star"
+    }
+  ],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}
