@@ -13,6 +13,9 @@ dependencies = [
     "jsonschema>=4.26,<5",
 ]
 
+[project.scripts]
+madflow-sqlops = "madflow_sqlops.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest>=8",

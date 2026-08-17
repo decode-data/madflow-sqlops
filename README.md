@@ -81,9 +81,9 @@ Previously an open question here; now answered in `gdt`'s `docs/decisions.md` (A
 
 ## Status
 
-- [ ] Pin GDT schema version (v0.2.0 is the latest tagged release in [gdt](https://github.com/decode-data/gdt) — confirm before pinning, a newer tag may exist by the time this is read)
-- [ ] `tag_operations()` implementation
-- [ ] CLI
+- [x] Pin GDT schema version (pinned to v0.2.0 — see `src/madflow_sqlops/_version.py`)
+- [x] `tag_operations()` implementation
+- [x] CLI
 - [ ] `SKILL.md`
-- [ ] Test fixtures
+- [x] Test fixtures
 - [ ] PyPI package scaffold
