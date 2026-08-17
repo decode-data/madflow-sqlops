@@ -12,6 +12,7 @@ import json
 import sys
 from pathlib import Path
 
+import jsonschema.exceptions
 import sqlglot.errors
 
 from .tagging import tag_operations
@@ -44,7 +45,12 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         result = tag_operations(sql, dialect=args.dialect)
-    except (sqlglot.errors.SqlglotError, ValueError) as e:
+    except (sqlglot.errors.SqlglotError, ValueError, jsonschema.exceptions.ValidationError) as e:
+        # SqlglotError/ValueError: bad SQL or an unknown --dialect -- genuine
+        # user-input problems. ValidationError: tag_operations() itself
+        # produced a schema-invalid shape (e.g. a join kind gdt's schema has
+        # no enum value for) -- an internal limitation, but still something a
+        # CLI user hits as "this query didn't tag," not a Python traceback.
         print(f"madflow-sqlops: {e}", file=sys.stderr)
         return 1
 
