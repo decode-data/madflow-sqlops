@@ -8,7 +8,7 @@ from sqlglot import exp
 def source_columns(node: exp.Expression) -> list[str]:
     """Every column name referenced anywhere in node's subtree, deduped, first-occurrence order.
 
-    A lightweight structural signal (GDT's own scope note in docs/grammar.md -> compute) --
+    A lightweight structural signal (gdt's own scope note in docs/grammar.md -> compute) --
     not a lineage graph, no cross-model resolution.
     """
     seen: dict[str, None] = {}

@@ -1,7 +1,7 @@
-"""Name-based allowlists for the categories GDT grounds in function names rather
+"""Name-based allowlists for the categories gdt grounds in function names rather
 than a dedicated sqlglot AST node (docs/decisions.md, 0003).
 
-Both lists are deliberately partial. GDT does not enumerate vendor function
+Both lists are deliberately partial. gdt does not enumerate vendor function
 names anywhere in the spec (ADR 0003's own reasoning: the list churns faster
 than any spec's release cadence), so this is a starter set seeded from the
 examples in ../gdt/docs/grammar.md, not a claim of completeness. Expect real

@@ -12,7 +12,7 @@ from ._version import GDT_SCHEMA_VERSION
 
 
 def tag_operations(sql: str, dialect: str) -> TaggedResult:
-    """Parse `sql` under `dialect`, classify every GDT category, validate, return.
+    """Parse `sql` under `dialect`, classify every gdt category, validate, return.
 
     `dialect` is required and never defaulted -- README -> Architecture: "Dialect
     matters; don't assume a default."

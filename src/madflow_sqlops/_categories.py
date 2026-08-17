@@ -1,4 +1,4 @@
-"""Classify a parsed sqlglot AST against every GDT v0.2 category.
+"""Classify a parsed sqlglot AST against every gdt v0.2 category.
 
 One function per category (`_add_*`), all invoked from a single walk in
 `build_operations`. See ../gdt/docs/grammar.md and docs/decisions.md for the
@@ -230,7 +230,7 @@ def _location_of(node: exp.Expression) -> str:
             # UNNEST join all as a conditionless Join node, indistinguishable
             # from each other at this layer. Read all of them as "from",
             # matching the comma-join example in docs/grammar.md -> unnest.
-            # Implementation judgment call, not a GDT-specified rule.
+            # Implementation judgment call, not a gdt-specified rule.
             return "from"
         if isinstance(parent, exp.From):
             return "from"

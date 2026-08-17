@@ -1,7 +1,7 @@
 [project]
 name = "madflow-sqlops"
 version = "0.1.0"
-description = "GDT reference implementation: tag SQL operations against sqlglot ASTs per the Grammar of Data Transformation spec."
+description = "gdt reference implementation: tag SQL operations against sqlglot ASTs per the Grammar of Data Transformation spec."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -31,7 +31,7 @@ dependencies = [
 Homepage = "https://github.com/decode-data/madflow-sqlops"
 Repository = "https://github.com/decode-data/madflow-sqlops"
 Issues = "https://github.com/decode-data/madflow-sqlops/issues"
-"GDT spec" = "https://github.com/decode-data/gdt"
+"gdt spec" = "https://github.com/decode-data/gdt"
 
 [project.scripts]
 madflow-sqlops = "madflow_sqlops.cli:main"
