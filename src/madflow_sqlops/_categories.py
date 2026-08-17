@@ -80,11 +80,12 @@ def build_operations(root: exp.Expression, dialect: str | None) -> Operations:
         elif isinstance(node, (exp.MD5, exp.SHA, exp.SHA2, exp.FarmFingerprint)):
             _add_column_hash_native(node, dialect, ops)
         elif isinstance(node, exp.AggFunc):
-            if not isinstance(node.parent, exp.Window):
+            if not _is_windowed(node):
                 _add_aggregate(node, dialect, ops)
             # else: this aggregate call is the windowed function itself
-            # (SUM(...) OVER (...)) -- already carried by the `window` entry,
-            # not a separate `aggregate` entry for the same call.
+            # (SUM(...) OVER (...), or SUM(...) IGNORE NULLS OVER (...)) --
+            # already carried by the `window` entry, not a separate
+            # `aggregate` entry for the same call.
         elif isinstance(node, (exp.CTE, exp.Subquery)):
             _add_subquery_cte(node, dialect, ops)
         elif isinstance(node, (exp.Union, exp.Except, exp.Intersect)):
@@ -144,37 +145,102 @@ def _wildcard_entry(star: exp.Star) -> dict[str, Any]:
 
 def _add_joins(select: exp.Select, dialect: str | None, ops: Operations) -> None:
     from_ = select.args.get("from_") or select.args.get("from")
-    steps: list[exp.Expression] = []
-    if from_ is not None:
-        steps.append(from_.this)
-    joins = select.args.get("joins") or []
-    for join in joins:
-        steps.append(join.this)
+    if from_ is None:
+        return
+    # Check the FROM clause's own base table once, up front, for the case
+    # where it's *itself* a parenthesized join tree with nothing joining onto
+    # it from outside (`FROM (b JOIN c ON ...) x`) -- the loop below only
+    # ever looks at join *targets*, so this is the one step it would never see.
+    base_nested = _nested_join_table(from_.this)
+    if base_nested is not None:
+        _add_join_chain(base_nested, base_nested.args["joins"], ops)
+    _add_join_chain(from_.this, select.args.get("joins") or [], ops)
+
+
+def _add_join_chain(from_step: exp.Expression, joins: list[exp.Join], ops: Operations) -> None:
+    """Emit one entry per pairwise join in `joins`, then recurse into any join
+    *target* that is itself a parenthesized join tree (`a JOIN (b JOIN c ON
+    ...) ON ...` parses as a Join whose `.this` is a Table/Subquery that
+    carries its own nested `joins` list) so those inner joins aren't silently
+    dropped.
+
+    Deliberately does NOT re-check `from_step` itself here (only the targets
+    introduced by `joins`, i.e. `steps[1:]`) -- `from_step` is the exact node
+    this call was handed to recurse into, and its `.args['joins']` doesn't
+    change just because we're now processing it, so re-scanning it would
+    match again immediately and recurse forever. Any nesting on `from_step`'s
+    own side is the caller's responsibility to have checked once, before
+    calling in (see `_add_joins`'s `base_nested` check).
+    """
+    steps = [from_step] + [j.this for j in joins]
 
     for i, join in enumerate(joins):
         left_name = _table_name(steps[i])
         right_name = _table_name(steps[i + 1])
         if left_name is None or right_name is None:
             continue  # not a table-to-table join (e.g. joined onto an UNNEST)
-        side = join.args.get("side")
-        kind = join.args.get("kind")
-        entry: dict[str, Any] = {
-            "kind": (side or kind or "inner").lower(),
-            "tables": [left_name, right_name],
-        }
-        on = join.args.get("on")
-        if on is not None:
-            keys = [eq.this.name for eq in on.find_all(exp.EQ) if isinstance(eq.this, exp.Column)]
-            if keys:
-                entry["keys"] = keys
+        kind = _join_kind(join)
+        if kind is None:
+            # SEMI / ANTI / bare OUTER / any other combination the gdt schema's
+            # join.kind enum (inner/left/right/full/cross) has no shape for --
+            # a known representability gap, same category as the non-equi-join
+            # gap already documented in docs/grammar.md -> join edge cases.
+            # Don't guess a kind; just don't tag this one.
+            continue
+        entry: dict[str, Any] = {"kind": kind, "tables": [left_name, right_name]}
+        keys = _join_keys(join)
+        if keys:
+            entry["keys"] = keys
         ops["join"].append(entry)
+
+    for step in steps[1:]:
+        nested_table = _nested_join_table(step)
+        if nested_table is not None:
+            _add_join_chain(nested_table, nested_table.args["joins"], ops)
+
+
+def _join_kind(join: exp.Join) -> str | None:
+    side = (join.args.get("side") or "").upper()
+    kind = (join.args.get("kind") or "").upper()
+    if side == "LEFT":
+        return "left"
+    if side == "RIGHT":
+        return "right"
+    if side == "FULL":
+        return "full"
+    if not side and kind == "CROSS":
+        return "cross"
+    if not side and kind in ("", "INNER"):
+        return "inner"
+    return None
+
+
+def _join_keys(join: exp.Join) -> list[str]:
+    on = join.args.get("on")
+    if on is not None:
+        return [eq.this.name for eq in on.find_all(exp.EQ) if isinstance(eq.this, exp.Column)]
+    using = join.args.get("using")
+    if using:
+        return [u.name for u in using]
+    return []
 
 
 def _table_name(node: exp.Expression) -> str | None:
     if isinstance(node, exp.Table):
         return node.name
-    if isinstance(node, exp.Subquery) and node.alias:
-        return node.alias
+    if isinstance(node, exp.Subquery):
+        if node.alias:
+            return node.alias
+        if isinstance(node.this, exp.Table):
+            return node.this.name
+    return None
+
+
+def _nested_join_table(node: exp.Expression) -> exp.Table | None:
+    """A Table (possibly Subquery-wrapped) carrying its own nested join chain."""
+    table = node.this if isinstance(node, exp.Subquery) else node
+    if isinstance(table, exp.Table) and table.args.get("joins"):
+        return table
     return None
 
 
@@ -213,13 +279,23 @@ def _add_subquery_cte(node: exp.CTE | exp.Subquery, dialect: str | None, ops: Op
 
 
 def _location_of(node: exp.Expression) -> str:
-    """Nearest structural container name for a Subquery/Unnest/Lateral node."""
+    """Nearest structural container name for a Subquery/Unnest/Lateral node.
+
+    `location` is a free-form string in the gdt schema (no enum), so this can
+    return a value more specific than "from" whenever that's what's actually
+    true -- it must not claim "from" for something that isn't a FROM-clause
+    table source (docs/grammar.md's own subquery_cte example only documents
+    from/where; the values below extend that set honestly rather than
+    collapsing everything unrecognized onto "from").
+    """
     parent = node.parent
     while parent is not None:
         if isinstance(parent, exp.With):
             return "with"
         if isinstance(parent, exp.Where):
             return "where"
+        if isinstance(parent, exp.Having):
+            return "having"
         if isinstance(parent, exp.Join):
             on = parent.args.get("on")
             using = parent.args.get("using")
@@ -234,8 +310,15 @@ def _location_of(node: exp.Expression) -> str:
             return "from"
         if isinstance(parent, exp.From):
             return "from"
+        if isinstance(parent, exp.Select):
+            # Reached the enclosing Select without passing through From/Where/
+            # Join/Having -- this node is a projection-list expression (a
+            # scalar subquery or a bare UNNEST() in the SELECT list), not a
+            # FROM-clause table source. Reporting "from" here would actively
+            # mislead a consumer; "select" is honest about what it actually is.
+            return "select"
         parent = parent.parent
-    return "from"
+    return "select"
 
 
 # --- conditional -----------------------------------------------------------------------------
@@ -307,10 +390,17 @@ def _add_cast(node: exp.Cast, dialect: str | None, ops: Operations) -> None:
 
 
 def _add_aggregate(node: exp.AggFunc, dialect: str | None, ops: Operations) -> None:
-    argument, distinct = _unwrap_distinct(node.this if "this" in node.args else None)
+    arguments, distinct = _unwrap_distinct(node.this if "this" in node.args else None)
+    # Two-argument aggregates (CORR, COVAR_POP/SAMP, REGR_*) carry their second
+    # operand in the `expression` slot, not inside `this` -- without this, that
+    # column silently vanishes from both argument_summary and source_columns.
+    second = node.args.get("expression")
+    if isinstance(second, exp.Expression):
+        arguments = [*arguments, second]
+
     entry: dict[str, Any] = {
         "function": _sql_name(node),
-        "argument_summary": expression_summary(argument, dialect) if argument is not None else "*",
+        "argument_summary": ", ".join(expression_summary(a, dialect) for a in arguments) if arguments else "*",
     }
     output = alias_output(node)
     if output:
@@ -319,17 +409,21 @@ def _add_aggregate(node: exp.AggFunc, dialect: str | None, ops: Operations) -> N
     group_keys = _enclosing_group_keys(node, dialect)
     if group_keys:
         entry["group_by_keys"] = group_keys
-    cols = source_columns(argument) if argument is not None else []
-    if cols:
-        entry["source_columns"] = cols
+    cols: list[str] = []
+    for a in arguments:
+        cols.extend(source_columns(a))
+    deduped_cols = list(dict.fromkeys(cols))
+    if deduped_cols:
+        entry["source_columns"] = deduped_cols
     ops["aggregate"].append(entry)
 
 
-def _unwrap_distinct(argument: exp.Expression | None) -> tuple[exp.Expression | None, bool]:
+def _unwrap_distinct(argument: exp.Expression | None) -> tuple[list[exp.Expression], bool]:
     if isinstance(argument, exp.Distinct):
-        inner = argument.expressions[0] if argument.expressions else None
-        return inner, True
-    return argument, False
+        return list(argument.expressions), True
+    if argument is None:
+        return [], False
+    return [argument], False
 
 
 def _enclosing_group_keys(node: exp.Expression, dialect: str | None) -> list[str]:
@@ -339,14 +433,53 @@ def _enclosing_group_keys(node: exp.Expression, dialect: str | None) -> list[str
     group = select.args.get("group")
     if group is None:
         return []
-    return [expression_summary(e, dialect) for e in group.expressions]
+    if group.expressions:
+        return [expression_summary(e, dialect) for e in group.expressions]
+    # A plain GROUP BY has no top-level `expressions` when the query uses
+    # ROLLUP/CUBE/GROUPING SETS instead -- those store their columns under
+    # separate arg keys (`rollup`/`cube`/`grouping_sets`), not `expressions`.
+    # Without this, an aggregate under any of these common grouping forms
+    # would report no group_by_keys at all, indistinguishable from a bare
+    # scalar aggregate with no GROUP BY clause whatsoever.
+    keys: list[str] = []
+    seen: set[str] = set()
+    for wrapper_key in ("rollup", "cube", "grouping_sets"):
+        for wrapper in group.args.get(wrapper_key) or []:
+            for item in wrapper.expressions:
+                if isinstance(item, exp.Tuple) and not item.expressions:
+                    continue  # the empty grouping set "()" -- no column to summarize
+                if isinstance(item, exp.Paren):
+                    item = item.this
+                summary = expression_summary(item, dialect)
+                if summary not in seen:
+                    seen.add(summary)
+                    keys.append(summary)
+    return keys
 
 
 # --- window --------------------------------------------------------------------------------
 
 
+def _is_windowed(node: exp.Expression) -> bool:
+    """True if `node` is the (possibly IGNORE/RESPECT NULLS-wrapped) function
+    inside an exp.Window -- i.e. already carried by a `window` entry, so it
+    must not also become a standalone `aggregate` entry for the same call.
+    """
+    parent = node.parent
+    if isinstance(parent, (exp.IgnoreNulls, exp.RespectNulls)):
+        parent = parent.parent
+    return isinstance(parent, exp.Window)
+
+
+def _unwrap_null_treatment(node: exp.Expression) -> exp.Expression:
+    """Strip an IGNORE NULLS / RESPECT NULLS wrapper to the real function call."""
+    if isinstance(node, (exp.IgnoreNulls, exp.RespectNulls)):
+        return node.this
+    return node
+
+
 def _add_window(node: exp.Window, dialect: str | None, ops: Operations) -> None:
-    func = node.this
+    func = _unwrap_null_treatment(node.this)
     entry: dict[str, Any] = {"function": _sql_name(func)}
     output = alias_output(node)
     if output:
@@ -407,8 +540,11 @@ def _add_column_hash_native(
     if output:
         entry["output"] = output
     bits = node.args.get("length")
-    if bits is not None:
+    if isinstance(bits, exp.Literal) and bits.is_number:
         entry["algorithm_bits"] = int(bits.this)
+    # else: a non-literal bit-length (a column, a parameter, ...) -- omit the
+    # field rather than crash; algorithm_bits is documented as "if specified"
+    # and a dynamic value isn't a fixed spec-time constant to report.
     cols = source_columns(argument) if argument is not None else []
     if cols:
         entry["source_columns"] = cols
@@ -454,7 +590,7 @@ def _add_json_extract(
 
     entry: dict[str, Any] = {
         "source_summary": expression_summary(source, dialect),
-        "path": "$." + ".".join(keys) if keys else "$",
+        "path": _render_json_path(keys),
         "scalar": bool(isinstance(node, exp.JSONExtractScalar) or _cast_wraps(node)),
     }
     output = alias_output(node) or (alias_output(node.parent) if _cast_wraps(node) else None)
@@ -466,54 +602,106 @@ def _add_json_extract(
     ops["json_extract"].append(entry)
 
 
+# Target types a JSONExtract could be cast to that are themselves semi-
+# structured/nested, not scalar -- casting to one of these doesn't make the
+# extraction scalar-returning the way `::string`/`::number` does.
+_NON_SCALAR_CAST_TYPES = frozenset(
+    {
+        exp.DataType.Type.JSON,
+        exp.DataType.Type.JSONB,
+        exp.DataType.Type.VARIANT,
+        exp.DataType.Type.OBJECT,
+        exp.DataType.Type.ARRAY,
+        exp.DataType.Type.STRUCT,
+        exp.DataType.Type.MAP,
+    }
+)
+
+
 def _cast_wraps(node: exp.Expression) -> bool:
     # docs/grammar.md's own worked example: Snowflake `payload:email::string`
     # parses as Cast(this=JSONExtract(...)) and is documented to normalize to
     # the *same* json_extract shape as Postgres `->>` (scalar: true) -- the
     # trailing cast is what signals scalar-ness for the colon-path operator,
     # which sqlglot otherwise always parses as the non-scalar exp.JSONExtract
-    # regardless of what it's cast to. Implementation judgment call for any
-    # cast target (not just string), since no other example is given.
-    return isinstance(node.parent, exp.Cast)
+    # regardless of what it's cast to. But a cast to an explicitly non-scalar
+    # type (`::variant`, `::object`, `::array`, ...) is not evidence of
+    # scalar-ness -- only a cast to something else is.
+    parent = node.parent
+    if not isinstance(parent, exp.Cast):
+        return False
+    return parent.to.this not in _NON_SCALAR_CAST_TYPES
 
 
 def _json_path_keys(node: exp.JSONExtract | exp.JSONExtractScalar) -> list[str]:
     path = node.args.get("expression")
     if path is None or not isinstance(path, exp.JSONPath):
         return []
-    return [p.this for p in path.expressions if isinstance(p, exp.JSONPathKey)]
+    keys: list[str] = []
+    for p in path.expressions:
+        if isinstance(p, exp.JSONPathKey):
+            keys.append(str(p.this))
+        elif isinstance(p, exp.JSONPathSubscript):
+            # Marked distinctly from a plain key so _render_json_path can join
+            # it as "[0]" rather than ".0" -- a subscript is not a named hop.
+            keys.append(f"[{p.this}]")
+    return keys
+
+
+def _render_json_path(keys: list[str]) -> str:
+    if not keys:
+        return "$"
+    parts = ["$"]
+    for key in keys:
+        if key.startswith("["):
+            parts.append(key)
+        else:
+            parts.append(f".{key}")
+    return "".join(parts)
 
 
 # --- unnest ------------------------------------------------------------------------------
 
 
 def _add_unnest(node: exp.Unnest, dialect: str | None, ops: Operations) -> None:
+    # A parallel/"zip" unnest (UNNEST(a, b) AS t(x, y), Postgres-style) lists
+    # more than one array; GDT's unnest shape is one-array-per-entry, so each
+    # array gets its own entry paired positionally with its own alias column
+    # -- reading only exprs[0] silently discarded every array after the first.
     exprs = node.args.get("expressions") or []
-    source = exprs[0] if exprs else None
-    entry: dict[str, Any] = {
-        "source_summary": expression_summary(source, dialect) if source is not None else "",
-    }
-    alias = _unnest_alias(node)
-    if alias:
-        entry["alias"] = alias
-    entry["ordinality"] = bool(node.args.get("offset"))
-    entry["location"] = _location_of(node)
-    cols = source_columns(source) if source is not None else []
-    if cols:
-        entry["source_columns"] = cols
-    ops["unnest"].append(entry)
+    aliases = _unnest_aliases(node, len(exprs))
+    ordinality = bool(node.args.get("offset"))
+    location = _location_of(node)
+    for source, alias in zip(exprs, aliases):
+        entry: dict[str, Any] = {"source_summary": expression_summary(source, dialect)}
+        if alias:
+            entry["alias"] = alias
+        entry["ordinality"] = ordinality
+        entry["location"] = location
+        cols = source_columns(source)
+        if cols:
+            entry["source_columns"] = cols
+        ops["unnest"].append(entry)
+    if not exprs:
+        entry = {"source_summary": "", "ordinality": ordinality, "location": location}
+        ops["unnest"].append(entry)
 
 
-def _unnest_alias(node: exp.Unnest) -> str | None:
+def _unnest_aliases(node: exp.Unnest, count: int) -> list[str | None]:
     table_alias = node.args.get("alias")
     if table_alias is None:
-        return None
+        return [None] * count
     columns = table_alias.args.get("columns") or []
+    if len(columns) == count:
+        return [c.name for c in columns]
     if columns:
-        return columns[0].name
+        # Count mismatch (e.g. WITH ORDINALITY's offset column already
+        # stripped out of `columns` elsewhere) -- fall back to the single
+        # alias name for every array rather than guessing a pairing.
+        return [columns[0].name] * count
     if table_alias.this:
-        return table_alias.this.name
-    return None
+        return [table_alias.this.name] * count
+    return [None] * count
 
 
 def _add_unnest_lateral_flatten(node: exp.Lateral, dialect: str | None, ops: Operations) -> None:
@@ -553,13 +741,18 @@ def _is_call_dot(node: exp.Dot) -> bool:
 
 
 def _unwrap_dot(node: exp.Expression) -> tuple[list[str], exp.Expression]:
-    parts: list[str] = []
-    cursor = node
-    while isinstance(cursor, exp.Dot):
-        this = cursor.this
-        parts.append(this.name if hasattr(this, "name") else str(this))
-        cursor = cursor.expression
-    return parts, cursor
+    # exp.Dot.flatten() yields every leaf left-to-right (namespace identifiers
+    # first, the call node last) -- a hand-rolled `while isinstance(cursor,
+    # exp.Dot): cursor = cursor.expression` loop is wrong here, because a 3+
+    # level qualified call (`a.b.c(...)`) nests the extra qualifiers on the
+    # *`.this`* side (Dot(this=Dot(this=a, expression=b), expression=c(...))),
+    # not the `.expression` side, so that loop only ever takes one step and
+    # silently drops every segment but the innermost.
+    if not isinstance(node, exp.Dot):
+        return [], node
+    *namespace, call_node = list(node.flatten())
+    parts = [n.name if hasattr(n, "name") else str(n) for n in namespace]
+    return parts, call_node
 
 
 def _call_arguments(call_node: exp.Expression) -> list[exp.Expression]:
