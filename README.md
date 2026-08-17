@@ -70,6 +70,8 @@ Ships at `.claude/skills/madflow-sqlops/SKILL.md` (not repo root) so a Claude Co
 2. Pin the GDT schema version explicitly (a bundled schema file or constant) — don't fetch it dynamically at runtime.
 3. Can release before decode-madflow's own beta — standalone visibility play, not blocked on the app.
 
+**Scaffold status:** `uv build` produces a valid sdist + wheel (`twine check` passes; the vendored GDT schema, `py.typed`, and the `madflow-sqlops` console-script entry point are all confirmed present in the wheel, and both were exercised from a wheel-only install in a clean venv with no source checkout). The `madflow-sqlops` name is unclaimed on PyPI as of this writing. Not yet actually published — `uv publish` is a deliberate, separate step requiring a PyPI API token and explicit sign-off, not bundled into this scaffolding work.
+
 ## Dialect/engine normalization — resolved upstream
 
 Previously an open question here; now answered in `gdt`'s `docs/decisions.md` (ADR 0001). Apply that decision as written — don't re-derive it in this repo.
@@ -81,4 +83,4 @@ Previously an open question here; now answered in `gdt`'s `docs/decisions.md` (A
 - [x] CLI
 - [x] `SKILL.md`
 - [x] Test fixtures
-- [ ] PyPI package scaffold
+- [x] PyPI package scaffold (not yet published — see Packaging & release)
