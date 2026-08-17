@@ -1,4 +1,4 @@
-"""Pinned GDT spec version this package tags against.
+"""Pinned gdt spec version this package tags against.
 
 Bumping either constant requires re-vendoring src/madflow_sqlops/_schema/
 and re-running the golden-file test suite against the new schema.

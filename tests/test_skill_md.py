@@ -1,4 +1,4 @@
-"""Guards against SKILL.md silently drifting from the pinned GDT version or
+"""Guards against SKILL.md silently drifting from the pinned gdt version or
 duplicating the schema instead of pointing at it (README -> SKILL.md outline).
 """
 

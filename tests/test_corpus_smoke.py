@@ -3,7 +3,7 @@ single-purpose category/combination fixtures.
 
 Not golden-file matched -- these don't assert an exact expected shape, only
 that tagging a query this size doesn't crash and that the result validates
-against the vendored GDT schema. The category/combination fixtures already
+against the vendored gdt schema. The category/combination fixtures already
 cover exact-shape correctness per category in isolation; this file exists to
 catch interactions between categories that only show up at realistic query
 complexity (multiple CTEs, multiple joins, nested subqueries, mixed

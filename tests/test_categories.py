@@ -1,7 +1,7 @@
-"""One fixture per GDT v0.2 category -- see tests/fixtures/categories/.
+"""One fixture per gdt v0.2 category -- see tests/fixtures/categories/.
 
 Each fixture's expected output is checked both for an exact match against the
-golden JSON and for validity against the vendored GDT schema, so a fixture
+golden JSON and for validity against the vendored gdt schema, so a fixture
 can never silently drift into an invalid shape.
 """
 

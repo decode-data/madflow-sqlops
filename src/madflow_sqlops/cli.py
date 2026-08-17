@@ -21,7 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="madflow-sqlops")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    tag_parser = subparsers.add_parser("tag", help="Tag a SQL file's operations against GDT")
+    tag_parser = subparsers.add_parser("tag", help="Tag a SQL file's operations against gdt")
     tag_parser.add_argument("file", help="Path to a .sql file, or '-' to read from stdin")
     tag_parser.add_argument("--dialect", required=True, help="sqlglot dialect, e.g. snowflake, bigquery, duckdb")
     tag_parser.add_argument("--pretty", action="store_true", help="Indent the JSON output for human reading")
