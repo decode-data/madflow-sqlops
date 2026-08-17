@@ -1,0 +1,23 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [
+    {
+      "kind": "union_all"
+    }
+  ],
+  "rename": [],
+  "compute": [],
+  "aggregate": [],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}

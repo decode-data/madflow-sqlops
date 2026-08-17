@@ -1,0 +1,38 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [],
+  "rename": [],
+  "compute": [
+    {
+      "output": "is_active",
+      "expression_summary": "CASE WHEN status = 'active' THEN 1 ELSE 0 END",
+      "source_columns": [
+        "status"
+      ]
+    }
+  ],
+  "aggregate": [],
+  "window": [],
+  "cast": [],
+  "conditional": [
+    {
+      "branches": [
+        {
+          "condition": "status = 'active'",
+          "result": "1"
+        }
+      ],
+      "output": "is_active",
+      "default": "0"
+    }
+  ],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}

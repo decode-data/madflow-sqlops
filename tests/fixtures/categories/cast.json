@@ -1,0 +1,37 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [],
+  "rename": [],
+  "compute": [
+    {
+      "output": "order_id_str",
+      "expression_summary": "CAST(order_id AS VARCHAR)",
+      "source_columns": [
+        "order_id"
+      ]
+    }
+  ],
+  "aggregate": [],
+  "window": [],
+  "cast": [
+    {
+      "source_summary": "order_id",
+      "target_type": "varchar",
+      "output": "order_id_str",
+      "safe": false,
+      "source_columns": [
+        "order_id"
+      ]
+    }
+  ],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}

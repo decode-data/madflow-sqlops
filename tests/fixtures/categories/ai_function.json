@@ -1,0 +1,36 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [],
+  "rename": [],
+  "compute": [
+    {
+      "output": "response",
+      "expression_summary": "AI_COMPLETE('llama3-8b', prompt_text)",
+      "source_columns": [
+        "prompt_text"
+      ]
+    }
+  ],
+  "aggregate": [],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [
+    {
+      "argument_summary": "'llama3-8b', prompt_text",
+      "output": "response",
+      "source_columns": [
+        "prompt_text"
+      ],
+      "function": "ai_complete"
+    }
+  ],
+  "udf": [],
+  "column_hash": []
+}

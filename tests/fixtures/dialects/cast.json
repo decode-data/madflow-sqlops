@@ -1,0 +1,11 @@
+[
+  {
+    "source_summary": "raw_value",
+    "target_type": "decimal",
+    "output": "parsed_value",
+    "safe": true,
+    "source_columns": [
+      "raw_value"
+    ]
+  }
+]

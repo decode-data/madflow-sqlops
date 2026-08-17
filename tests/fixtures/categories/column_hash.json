@@ -1,0 +1,37 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [],
+  "rename": [],
+  "compute": [
+    {
+      "output": "email_hash",
+      "expression_summary": "SHA2(email, 256)",
+      "source_columns": [
+        "email"
+      ]
+    }
+  ],
+  "aggregate": [],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": [
+    {
+      "function": "sha2",
+      "argument_summary": "email",
+      "output": "email_hash",
+      "algorithm_bits": 256,
+      "source_columns": [
+        "email"
+      ]
+    }
+  ]
+}

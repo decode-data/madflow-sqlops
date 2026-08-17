@@ -1,0 +1,48 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [],
+  "rename": [],
+  "compute": [
+    {
+      "output": "running_total",
+      "expression_summary": "SUM(amount) OVER (PARTITION BY customer_id ORDER BY order_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)",
+      "source_columns": [
+        "customer_id",
+        "amount",
+        "order_date"
+      ]
+    }
+  ],
+  "aggregate": [],
+  "window": [
+    {
+      "function": "sum",
+      "output": "running_total",
+      "partition_by": [
+        "customer_id"
+      ],
+      "order_by": [
+        "order_date"
+      ],
+      "frame": {
+        "kind": "rows",
+        "start": "UNBOUNDED PRECEDING",
+        "end": "CURRENT ROW"
+      },
+      "source_columns": [
+        "amount"
+      ]
+    }
+  ],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}

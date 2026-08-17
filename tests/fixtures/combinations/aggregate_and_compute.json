@@ -1,0 +1,37 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [],
+  "rename": [],
+  "compute": [
+    {
+      "output": "total_spent",
+      "expression_summary": "SUM(amount)",
+      "source_columns": [
+        "amount"
+      ]
+    }
+  ],
+  "aggregate": [
+    {
+      "function": "sum",
+      "argument_summary": "amount",
+      "output": "total_spent",
+      "distinct": false,
+      "source_columns": [
+        "amount"
+      ]
+    }
+  ],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}
