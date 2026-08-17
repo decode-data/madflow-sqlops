@@ -1,0 +1,34 @@
+{
+  "join": [],
+  "filter": [],
+  "set_op": [],
+  "rename": [
+    {
+      "source": "value",
+      "output": "tag"
+    }
+  ],
+  "compute": [],
+  "aggregate": [],
+  "window": [],
+  "cast": [],
+  "conditional": [],
+  "subquery_cte": [],
+  "wildcard_select": [],
+  "json_parse": [],
+  "json_extract": [],
+  "unnest": [
+    {
+      "source_summary": "o.tags",
+      "alias": "f",
+      "ordinality": false,
+      "location": "from",
+      "source_columns": [
+        "tags"
+      ]
+    }
+  ],
+  "ai_function": [],
+  "udf": [],
+  "column_hash": []
+}
