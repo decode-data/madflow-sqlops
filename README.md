@@ -54,14 +54,9 @@ echo "SELECT ..." | madflow-sqlops tag - --dialect duckdb   # stdin
 
 Same narrow-scope discipline as the library API — no `--staging-check` flags or anything encoding app-specific judgment.
 
-## `SKILL.md` (planned, not yet written)
+## `SKILL.md`
 
-Will ship at repo root (or `.claude/skills/madflow-sqlops/SKILL.md`). Outline:
-
-- **Frontmatter:** name, one-line trigger description (working with SQL operation classification, GDT output, or this package specifically).
-- **Invocation:** CLI syntax above, plus the Python API for in-process use.
-- **Output shape:** point at the GDT spec's JSON Schema rather than duplicating it.
-- **Gotchas:** dialect must be specified explicitly (no silent default); a cache-hit response is structurally identical to a fresh tag; GDT version pinning means output shape can lag behind the latest spec until this package is updated.
+Ships at `.claude/skills/madflow-sqlops/SKILL.md` (not repo root) so a Claude Code session working in this repo picks it up automatically, per "What this is" above. Covers: frontmatter (name + trigger description), both invocation paths (CLI and Python API), a pointer at the vendored GDT JSON Schema rather than a duplicate of it, and the gotchas (dialect never defaulted, cache-hit responses are structurally identical to fresh tags, output shape lags the latest GDT spec until this package's pin is bumped).
 
 ## Testing (planned)
 
@@ -84,6 +79,6 @@ Previously an open question here; now answered in `gdt`'s `docs/decisions.md` (A
 - [x] Pin GDT schema version (pinned to v0.2.0 — see `src/madflow_sqlops/_version.py`)
 - [x] `tag_operations()` implementation
 - [x] CLI
-- [ ] `SKILL.md`
+- [x] `SKILL.md`
 - [x] Test fixtures
 - [ ] PyPI package scaffold
