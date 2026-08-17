@@ -12,6 +12,7 @@ from importlib import resources
 from typing import Any
 
 import jsonschema
+import jsonschema.validators
 
 _SCHEMA_PACKAGE = "madflow_sqlops._schema"
 _SCHEMA_FILENAME = "gdt-v0.1.schema.json"
@@ -27,5 +28,20 @@ def load_schema() -> dict[str, Any]:
     return json.loads(schema_text)
 
 
+@lru_cache(maxsize=1)
+def _validator() -> jsonschema.protocols.Validator:
+    # jsonschema.validate() is a one-shot convenience wrapper: it re-derives
+    # the validator class and re-checks the whole schema against its own
+    # meta-schema on every call, even though the schema never changes here.
+    # Building one Validator once (cached the same way load_schema() already
+    # is) and reusing its .validate() avoids repeating that on every
+    # tag_operations() call -- its own docstring recommends exactly this for
+    # repeated validation against a fixed schema.
+    schema = load_schema()
+    validator_cls = jsonschema.validators.validator_for(schema)
+    validator_cls.check_schema(schema)
+    return validator_cls(schema)
+
+
 def validate(document: dict[str, Any]) -> None:
-    jsonschema.validate(instance=document, schema=load_schema())
+    _validator().validate(document)

@@ -151,9 +151,7 @@ def _add_joins(select: exp.Select, dialect: str | None, ops: Operations) -> None
     # where it's *itself* a parenthesized join tree with nothing joining onto
     # it from outside (`FROM (b JOIN c ON ...) x`) -- the loop below only
     # ever looks at join *targets*, so this is the one step it would never see.
-    base_nested = _nested_join_table(from_.this)
-    if base_nested is not None:
-        _add_join_chain(base_nested, base_nested.args["joins"], ops)
+    _maybe_recurse_nested_join(from_.this, ops)
     _add_join_chain(from_.this, select.args.get("joins") or [], ops)
 
 
@@ -194,9 +192,20 @@ def _add_join_chain(from_step: exp.Expression, joins: list[exp.Join], ops: Opera
         ops["join"].append(entry)
 
     for step in steps[1:]:
-        nested_table = _nested_join_table(step)
-        if nested_table is not None:
-            _add_join_chain(nested_table, nested_table.args["joins"], ops)
+        _maybe_recurse_nested_join(step, ops)
+
+
+def _maybe_recurse_nested_join(step: exp.Expression, ops: Operations) -> None:
+    """If `step` carries its own nested join chain, emit it too. Shared by
+    `_add_joins`'s one-time base-table check and `_add_join_chain`'s tail
+    loop so the "does this step have more nesting" rule lives in exactly one
+    place -- see `_add_join_chain`'s docstring for why the two call sites
+    can't just share one loop outright (the recursion-safety rule about not
+    re-scanning `from_step`).
+    """
+    nested_table = _nested_join_table(step)
+    if nested_table is not None:
+        _add_join_chain(nested_table, nested_table.args["joins"], ops)
 
 
 def _join_kind(join: exp.Join) -> str | None:
@@ -460,20 +469,28 @@ def _enclosing_group_keys(node: exp.Expression, dialect: str | None) -> list[str
 # --- window --------------------------------------------------------------------------------
 
 
+# Single source of truth for "what counts as a null-treatment wrapper" --
+# _is_windowed and _unwrap_null_treatment both need this exact set, and
+# duplicating it inline in each risked exactly the bug this pair exists to
+# prevent: a third wrapper type added to one copy and missed in the other
+# would silently reintroduce the aggregate/window double-counting bug.
+_NULL_TREATMENT_TYPES = (exp.IgnoreNulls, exp.RespectNulls)
+
+
 def _is_windowed(node: exp.Expression) -> bool:
     """True if `node` is the (possibly IGNORE/RESPECT NULLS-wrapped) function
     inside an exp.Window -- i.e. already carried by a `window` entry, so it
     must not also become a standalone `aggregate` entry for the same call.
     """
     parent = node.parent
-    if isinstance(parent, (exp.IgnoreNulls, exp.RespectNulls)):
+    if isinstance(parent, _NULL_TREATMENT_TYPES):
         parent = parent.parent
     return isinstance(parent, exp.Window)
 
 
 def _unwrap_null_treatment(node: exp.Expression) -> exp.Expression:
     """Strip an IGNORE NULLS / RESPECT NULLS wrapper to the real function call."""
-    if isinstance(node, (exp.IgnoreNulls, exp.RespectNulls)):
+    if isinstance(node, _NULL_TREATMENT_TYPES):
         return node.this
     return node
 

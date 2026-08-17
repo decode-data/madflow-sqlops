@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -33,7 +34,14 @@ class Operations:
         return cls(**{name: ops[name] for name in CATEGORY_NAMES})
 
     def to_dict(self) -> _OperationsDict:
-        return {name: getattr(self, name) for name in CATEGORY_NAMES}
+        # `frozen=True` only blocks reassigning an attribute -- it doesn't
+        # stop a caller from mutating the list/dict *objects* an attribute
+        # points at (a window entry's `frame` field is itself a nested dict).
+        # Returning deep copies keeps "frozen" meaning what it looks like it
+        # means: this result's internal state can't be corrupted by whatever
+        # a caller does with the dict handed back, which matters for anyone
+        # caching a TaggedResult (README frames caching as their concern).
+        return {name: copy.deepcopy(getattr(self, name)) for name in CATEGORY_NAMES}
 
 
 @dataclass(frozen=True)
