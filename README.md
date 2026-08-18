@@ -30,6 +30,8 @@ Optional, later — not v0.1: a thin MCP server wrapping `tag_operations` as a t
 3. **Cache** — key the tagged output by a hash of the input SQL string (+ dialect). Re-tagging identical input is a cache hit, not a re-parse. Cache *persistence* is the caller's concern — this package just needs cheap, deterministic cache-key computation.
 4. **Validate against gdt schema** — output should validate against the pinned gdt JSON Schema version; fail loudly on drift rather than silently emitting an unrecognized shape.
 
+**Classification is 100% structural (AST node types via `isinstance` checks against `sqlglot.exp`), never regex or other string/text matching against the raw SQL.** The name-based categories (`ai_function`/`udf`/`column_hash`'s dialect fallback — see `docs/decisions.md` 0003 in the [gdt](https://github.com/decode-data/gdt) repo) still match against parsed function-name *nodes*, not raw source text. `src/madflow_sqlops/` imports `re` nowhere — verifiable directly: `grep -rn "^import re" src/madflow_sqlops/` returns nothing.
+
 ## Public API sketch
 
 ```python
