@@ -25,6 +25,8 @@ Optional, later — not v0.1: a thin MCP server wrapping `tag_operations` as a t
 - **No ruleset/rules YAML of any kind** — not even a gdt-only one. This package emits tags; it never has an opinion about which tags are allowed where. If a standalone, gdt-native ruleset+verifier ever gets built, it belongs in the [gdt](https://github.com/decode-data/gdt) repo, not here.
 - No app-specific types anywhere in the public API — a caller with no knowledge of decode-madflow, dbt, or YAML config should be able to use this package.
 
+`examples/rules_checker/` is reference material for building a rules engine on top of this package's output — not an exception to the above. It's not imported by `madflow_sqlops`, not exported, not shipped in the built wheel (verified). See its own README for why: rule evaluation still belongs in a separate consumer (decode-madflow, most likely), this is just a documented starting point for whoever builds that.
+
 ## Architecture
 
 1. **Parse** — `sqlglot.parse_one(sql, dialect=...)` → AST. Dialect matters; don't assume a default.
