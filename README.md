@@ -1,5 +1,7 @@
 # madflow-sqlops — gdt Reference Implementation
 
+**Just want to install and run it?** See [USAGE.md](USAGE.md) — this README covers architecture and design rationale.
+
 **License:** MIT — matches `sqlglot` exactly (this package extends it directly; matching removes any license-compatibility friction for the existing `sqlglot` community).
 **Depends on:** [gdt](https://github.com/decode-data/gdt) (pin a specific gdt schema version, don't float against `main` — currently v0.2.0 is the latest tagged release), `sqlglot` (MIT).
 **Consumed by:** decode-madflow's Phase 1 sidecar (Rust/Tauri app calls this via a bundled Python process) — a separate integration path from the CLI/Skill below. The sidecar call is decode-madflow's internal `ToolProvider` registration; the CLI/Skill are for external agents (other Claude Code sessions, other tools) working with this package standalone. Keep both working.
